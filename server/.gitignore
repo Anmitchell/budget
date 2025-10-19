@@ -19,6 +19,6 @@ npm-debug.log*
 
 # ESLint cache
 .eslintcache
-/generated/prisma
 
+# Prisma
 /generated/prisma
