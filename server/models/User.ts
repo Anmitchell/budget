@@ -12,17 +12,21 @@ const createUser = async (user: RegisterUserData) => {
 
     return await prisma.user.create({
         data: {
+            firstName: user.firstName,
+            lastName: user.lastName,
             email: user.email,
-            name: user.name,
+            confirmPassword: user.confirmPassword,
             password: hashedPassword, // Store the hashed password in the database
         },
         select: {
             id: true,
+            firstName: true,
+            lastName: true,
             email: true,
-            name: true,
+            password: false, // Do not return the password in the response
+            confirmPassword: false,
             createdAt: true,
             updatedAt: true,
-            password: false, // Do not return the password in the response
         },
     });
 };
