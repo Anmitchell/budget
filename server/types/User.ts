@@ -1,11 +1,22 @@
 export interface User {
     id: number;
-    email: string;
-    name: string;
     firstName: string;
     lastName: string;
+    email: string;
     password: string;
-    confirmPassword: string;
     createdAt: Date;
     updatedAt: Date;
+}
+
+export interface RegisterUser {
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
+}
+
+export interface LoginUser {
+    email: string;
+    password: string;
 }

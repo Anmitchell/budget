@@ -1,54 +1,37 @@
 import type { Request, Response } from 'express';
-import userModel from '../models/User.js';
-import type { User } from '../types/User.js';
+import userModel from '../models/UserModel.js';
+import type { RegisterUser } from '../types/User.js';
+import { Prisma } from '@prisma/client';
 
 const registerUser = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { email, name, password } = req.body;
+        // req.body is already validated by middleware at this point
+        const { firstName, lastName, email, password } = req.body;
 
-        // Input validation
-        if (!email || !password) {
-            res.status(400).json({
-                error: 'Email and password are required'
-            });
-            return;
-        }
-
-        // Basic email validation
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(email)) {
-            res.status(400).json({
-                error: 'Please provide a valid email address'
-            });
-            return;
-        }
-
-        // Password length validation
-        if (password.length < 6) {
-            res.status(400).json({
-                error: 'Password must be at least 6 characters long'
-            });
-            return;
-        }
-
-        const user = await userModel.createUser({
+        // Register the user
+        const user = await userModel.CreateUser({
+            firstName: firstName,
+            lastName: lastName,
             email: email,
-            name: name || null,
-            password: password
-        } as User);
+            password: password,
+        } as RegisterUser);
 
+        // Return the user data to the client
         res.status(201).json({
             message: 'User created successfully',
             user: user
         });
-    } catch (error: any) {
-        console.error('Registration error:', error);
-        console.error('Error code:', error.code);
-        console.error('Error message:', error.message);
-        console.error('Error meta:', error.meta);
+    } catch (error: unknown) {
+        if (error instanceof Error) {
+            console.error('Registration error:', error.message);
+        } else if (error instanceof Prisma.PrismaClientKnownRequestError) {
+            console.error('Registration error:', error.message);
+        } else {
+            console.error('Registration error:', error);
+        }
 
         // Handle Prisma unique constraint error (duplicate email)
-        if (error.code === 'P2002' && error.meta?.target?.includes('email')) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002' && (error.meta as { target?: string[]; })?.target?.includes('email')) {
             res.status(409).json({
                 error: 'Email already exists'
             });
@@ -56,7 +39,7 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
         }
 
         // Handle other Prisma errors
-        if (error.code && error.code.startsWith('P')) {
+        if (error instanceof Prisma.PrismaClientKnownRequestError && error.code.startsWith('P')) {
             res.status(400).json({
                 error: `Database error: ${error.message}`,
                 code: error.code
@@ -67,7 +50,7 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
         // Generic error
         res.status(500).json({
             error: 'Internal server error',
-            details: error.message
+            details: error instanceof Error ? error.message : 'Unknown error'
         });
     }
 };

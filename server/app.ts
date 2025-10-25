@@ -1,12 +1,19 @@
 import express from "express";
 import cors from "cors";
 import userRoutes from "./routes/userRoutes.js";
+import { generalRateLimit } from "./middleware/rateLimiting.js";
+import { sanitizeUserInput } from "./middleware/sanitization.js";
 
 const app = express(); // Create an Express application.
 
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cors()); // Allows requests from client-side to server-side
+app.use(generalRateLimit); // Apply general rate limiting to all routes
+
+// Apply sanitization middleware to all routes
+// This should come after parsing but before route-specific middleware
+app.use('/api/users', sanitizeUserInput);
 
 // Environment variables
 const PORT = process.env.PORT || 3000; // Get port from environment variables or use 3000 as default.
@@ -14,9 +21,10 @@ const PORT = process.env.PORT || 3000; // Get port from environment variables or
 // Routes
 app.use('/api/users', userRoutes);
 
-app.get("/", (req, res) => {
+// Health check route
+app.get("/", generalRateLimit, (req, res) => {
     res.json({
-        message: "Hello World",
+        message: "Server is running",
         port: PORT
     });
 });
