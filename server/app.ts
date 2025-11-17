@@ -1,8 +1,8 @@
-import express from "express";
-import cors from "cors";
-import userRoutes from "./routes/userRoutes.js";
-import { generalRateLimit } from "./middleware/rateLimiting.js";
-import { sanitizeUserInput } from "./middleware/sanitization.js";
+import express from 'express';
+import cors from 'cors';
+import userRoutes from './routes/userRoutes.js';
+import { generalRateLimit } from './middleware/rateLimiting.js';
+import { sanitizeUserInput } from './middleware/sanitization.js';
 
 const app = express(); // Create an Express application.
 
@@ -22,15 +22,14 @@ const PORT = process.env.PORT || 3000; // Get port from environment variables or
 app.use('/api/users', userRoutes);
 
 // Health check route
-app.get("/", generalRateLimit, (req, res) => {
-    res.json({
-        message: "Server is running",
-        port: PORT
-    });
+app.get('/', generalRateLimit, (req, res) => {
+  res.json({
+    message: 'Server is running',
+    port: PORT,
+  });
 });
-
 
 // output a message to the console when the server is running
 app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port ${PORT}`);
 });

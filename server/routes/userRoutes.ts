@@ -6,6 +6,11 @@ import { registrationRateLimit } from '../middleware/rateLimiting.js';
 
 const router = Router();
 
-router.post('/register', registrationRateLimit, validateRequest(userRegistrationSchema), userController.registerUser);
+router.post(
+  '/register',
+  registrationRateLimit,
+  validateRequest(userRegistrationSchema),
+  userController.registerUser
+);
 
 export default router;
