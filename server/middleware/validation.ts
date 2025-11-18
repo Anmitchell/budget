@@ -8,7 +8,7 @@ export const validateRequest = (schema: ZodType) => {
       // Validate the request body
       req.body = schema.parse(req.body);
       next();
-    } catch (error: any) {
+    } catch (error: unknown) {
       // Handle Zod errors
       if (error instanceof ZodError) {
         // Format Zod errors for better client experience

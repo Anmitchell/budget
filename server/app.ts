@@ -6,6 +6,9 @@ import { sanitizeUserInput } from './middleware/sanitization.js';
 
 const app = express(); // Create an Express application.
 
+// Environment variables
+const PORT = process.env.PORT || 3000; // Get port from environment variables or use 3000 as default.
+
 app.use(express.json()); // Parse JSON bodies
 app.use(express.urlencoded({ extended: true })); // Parse URL-encoded bodies
 app.use(cors()); // Allows requests from client-side to server-side
@@ -15,14 +18,11 @@ app.use(generalRateLimit); // Apply general rate limiting to all routes
 // This should come after parsing but before route-specific middleware
 app.use('/api/users', sanitizeUserInput);
 
-// Environment variables
-const PORT = process.env.PORT || 3000; // Get port from environment variables or use 3000 as default.
-
 // Routes
 app.use('/api/users', userRoutes);
 
 // Health check route
-app.get('/', generalRateLimit, (req, res) => {
+app.get('/api/health-check', generalRateLimit, (req, res) => {
   res.json({
     message: 'Server is running',
     port: PORT,

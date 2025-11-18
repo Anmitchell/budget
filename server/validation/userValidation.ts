@@ -8,7 +8,7 @@ export const userRegistrationSchema = z
       .string()
       .min(1, { message: 'First name is required' })
       .max(50, { message: 'First name must be less than 50 characters' })
-      .regex(/^[a-zA-Z\s\-'\.]+$/, {
+      .regex(/^[a-zA-Z\s\-'.]+$/, {
         message:
           'First name can only contain letters, spaces, hyphens, apostrophes, and periods',
       }),
@@ -17,7 +17,7 @@ export const userRegistrationSchema = z
       .string()
       .min(1, { message: 'Last name is required' })
       .max(50, { message: 'Last name must be less than 50 characters' })
-      .regex(/^[a-zA-Z\s\-'\.]+$/, {
+      .regex(/^[a-zA-Z\s\-'.]+$/, {
         message:
           'Last name can only contain letters, spaces, hyphens, apostrophes, and periods',
       }),
@@ -39,7 +39,7 @@ export const userRegistrationSchema = z
       .refine(val => /\d/.test(val), {
         message: 'Password must contain at least one number',
       })
-      .refine(val => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(val), {
+      .refine(val => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(val), {
         message: 'Password must contain at least one special character',
       }),
 
@@ -60,7 +60,7 @@ export const userRegistrationSchema = z
       .refine(val => /\d/.test(val), {
         message: 'Confirm password must contain at least one number',
       })
-      .refine(val => /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(val), {
+      .refine(val => /[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]/.test(val), {
         message: 'Confirm password must contain at least one special character',
       }),
   })
@@ -69,5 +69,15 @@ export const userRegistrationSchema = z
     path: ['confirmPassword'],
   });
 
+export const userLoginSchema = z.object({
+  email: z
+    .email({ error: 'Please provide a valid email address' })
+    .transform(val => val.toLowerCase()),
+  password: z
+    .string()
+    .min(8, { message: 'Password must be at least 8 characters long' }),
+});
+
 // Type inference for TypeScript
 export type UserRegistrationInput = z.infer<typeof userRegistrationSchema>;
+export type UserLoginInput = z.infer<typeof userLoginSchema>;

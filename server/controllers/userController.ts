@@ -1,6 +1,5 @@
 import type { Request, Response } from 'express';
 import userModel from '../models/UserModel.js';
-import type { RegisterUser } from '../types/User.js';
 import { Prisma } from '@prisma/client';
 
 const registerUser = async (req: Request, res: Response): Promise<void> => {
@@ -9,12 +8,13 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
     const { firstName, lastName, email, password } = req.body;
 
     // Register the user
+    // Type assertion not needed - validation middleware ensures correct type
     const user = await userModel.CreateUser({
-      firstName: firstName,
-      lastName: lastName,
-      email: email,
-      password: password,
-    } as RegisterUser);
+      firstName,
+      lastName,
+      email,
+      password,
+    });
 
     // Return the user data to the client
     res.status(201).json({
@@ -22,11 +22,14 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
       user: user,
     });
   } catch (error: unknown) {
+    // Error from validation middleware
     if (error instanceof Error) {
       console.error('Registration error:', error.message);
-    } else if (error instanceof Prisma.PrismaClientKnownRequestError) {
+    } // Error from Prisma
+    else if (error instanceof Prisma.PrismaClientKnownRequestError) {
       console.error('Registration error:', error.message);
-    } else {
+    } // Generic error
+    else {
       console.error('Registration error:', error);
     }
 
@@ -62,6 +65,25 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+const loginUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+    const user = await userModel.Login({ email, password });
+    res.status(200).json({
+      message: 'Login successful',
+      user: user,
+    });
+  } catch (error: unknown) {
+    console.error('Login error:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return;
+  }
+};
+
 export default {
   registerUser,
+  loginUser,
 };

@@ -1,12 +1,6 @@
 import type { Request, Response, NextFunction } from 'express';
 import validator from 'validator';
-import { JSDOM } from 'jsdom';
-import createDOMPurify from 'dompurify';
-
-// Create a DOMPurify instance for server-side HTML sanitization
-const window = new JSDOM('').window;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const DOMPurify = createDOMPurify(window as any);
+import sanitizeHtml from 'sanitize-html';
 
 /**
  * Sanitization options for different field types
@@ -27,39 +21,36 @@ const DEFAULT_OPTIONS: Record<string, SanitizationOptions> = {
   // Text fields - basic sanitization
   text: {
     trim: true,
-    escape: true,
-    stripHtml: true,
+    stripHtml: true, // Remove all HTML tags (XSS prevention)
     maxLength: 1000,
   },
 
   // Name fields - more restrictive
   name: {
     trim: true,
-    escape: true,
-    stripHtml: true,
-    removeSpecialChars: true,
+    stripHtml: true, // Remove all HTML tags (XSS prevention)
+    removeSpecialChars: true, // Format validation - only allow valid name characters
     maxLength: 50,
   },
 
-  // Email fields - normalize and escape
+  // Email fields - normalize only (don't escape - breaks email format)
   email: {
     trim: true,
     normalizeEmail: true,
-    escape: true,
     maxLength: 254,
   },
 
-  // Password fields - minimal sanitization (don't escape special chars)
+  // Password fields - minimal sanitization
+  // IMPORTANT: Do NOT trim passwords - spaces may be intentional!
+  // Trimming passwords changes the password, which is a security risk
   password: {
-    trim: true,
     maxLength: 100,
   },
 
-  // Description/textarea fields - allow some HTML but sanitize
+  // Description/textarea fields - remove HTML for security
   description: {
     trim: true,
-    stripHtml: true,
-    escape: true,
+    stripHtml: true, // Remove all HTML tags (XSS prevention)
     maxLength: 5000,
   },
 };
@@ -79,17 +70,13 @@ function sanitizeString(value: string, options: SanitizationOptions): string {
     sanitized = sanitized.trim();
   }
 
-  // Remove HTML tags and content
+  // Remove HTML tags and content (XSS prevention)
+  // This is sufficient - no need to escape since we're removing all HTML
   if (options.stripHtml) {
-    sanitized = DOMPurify.sanitize(sanitized, {
-      ALLOWED_TAGS: [],
-      ALLOWED_ATTR: [],
+    sanitized = sanitizeHtml(sanitized, {
+      allowedTags: [],
+      allowedAttributes: {},
     });
-  }
-
-  // Escape HTML entities
-  if (options.escape) {
-    sanitized = validator.escape(sanitized);
   }
 
   // Remove special characters (keep only alphanumeric, spaces, and basic punctuation)
@@ -112,10 +99,14 @@ function sanitizeString(value: string, options: SanitizationOptions): string {
 
 /**
  * Recursively sanitize an object's string properties
+ * @param obj - The object to sanitize
+ * @param fieldConfig - Configuration mapping field names to sanitization types
+ * @param strictMode - If true, only process fields in fieldConfig and remove unknown fields
  */
 function sanitizeObject(
   obj: unknown,
-  fieldConfig: Record<string, string>
+  fieldConfig: Record<string, string>,
+  strictMode: boolean = false
 ): unknown {
   if (obj === null || obj === undefined) {
     return obj;
@@ -126,12 +117,17 @@ function sanitizeObject(
   }
 
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item, fieldConfig));
+    return obj.map(item => sanitizeObject(item, fieldConfig, strictMode));
   }
 
   if (typeof obj === 'object') {
     const sanitized: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(obj)) {
+      // In strict mode, skip fields not in the config
+      if (strictMode && !(key in fieldConfig)) {
+        continue; // Skip unknown fields
+      }
+
       const fieldType = fieldConfig[key] || 'text';
       const options = DEFAULT_OPTIONS[fieldType] ?? DEFAULT_OPTIONS.text;
 
@@ -141,7 +137,7 @@ function sanitizeObject(
           options ?? (DEFAULT_OPTIONS.text as SanitizationOptions)
         );
       } else {
-        sanitized[key] = sanitizeObject(value, fieldConfig);
+        sanitized[key] = sanitizeObject(value, fieldConfig, strictMode);
       }
     }
     return sanitized;
@@ -152,28 +148,49 @@ function sanitizeObject(
 
 /**
  * Create a sanitization middleware for specific field configurations
+ * @param fieldConfig - Configuration mapping field names to sanitization types
+ * @param options - Additional options for the middleware
+ * @param options.strictMode - If true, only process fields in fieldConfig and remove unknown fields (default: true for security)
  */
 export const createSanitizationMiddleware = (
-  fieldConfig: Record<string, string>
+  fieldConfig: Record<string, string>,
+  options: { strictMode?: boolean } = { strictMode: true }
 ) => {
+  const strictMode = options.strictMode ?? true; // Default to strict mode for security
+
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       // Sanitize request body
       if (req.body && typeof req.body === 'object') {
-        req.body = sanitizeObject(req.body, fieldConfig);
+        req.body = sanitizeObject(req.body, fieldConfig, strictMode);
       }
 
-      // Sanitize query parameters
+      // Sanitize query parameters (mutate properties since req.query is read-only)
       if (req.query && typeof req.query === 'object') {
-        req.query = sanitizeObject(req.query, fieldConfig) as typeof req.query;
+        const sanitizedQuery = sanitizeObject(
+          req.query,
+          fieldConfig,
+          strictMode
+        ) as typeof req.query;
+        // Mutate properties instead of replacing the object
+        Object.keys(req.query).forEach(key => {
+          delete (req.query as Record<string, unknown>)[key];
+        });
+        Object.assign(req.query, sanitizedQuery);
       }
 
       // Sanitize URL parameters
       if (req.params && typeof req.params === 'object') {
-        req.params = sanitizeObject(
+        const sanitizedParams = sanitizeObject(
           req.params,
-          fieldConfig
+          fieldConfig,
+          strictMode
         ) as typeof req.params;
+        // Mutate properties instead of replacing the object
+        Object.keys(req.params).forEach(key => {
+          delete (req.params as Record<string, unknown>)[key];
+        });
+        Object.assign(req.params, sanitizedParams);
       }
 
       next();

@@ -1,22 +1,14 @@
-export interface User {
-  id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { Prisma, User } from '@prisma/client';
 
-export interface RegisterUser {
-  firstName: string;
-  lastName: string;
-  email: string;
-  password: string;
-  confirmPassword: string;
-}
+// Re-export Prisma's generated User type for convenience
+export type { User };
 
-export interface LoginUser {
-  email: string;
-  password: string;
-}
+// RegisterUser: API input for user registration
+// Derived from Prisma's UserCreateInput, but only required fields
+export type RegisterUser = Pick<
+  Prisma.UserCreateInput,
+  'firstName' | 'lastName' | 'email' | 'password'
+>;
+
+// LoginUser: API input for user login
+export type LoginUser = Pick<User, 'email' | 'password'>;
